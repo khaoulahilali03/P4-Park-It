@@ -11,6 +11,7 @@ import com.parkit.parkingsystem.model.Ticket;
 import com.parkit.parkingsystem.service.ParkingService;
 import com.parkit.parkingsystem.util.InputReaderUtil;
 import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -36,7 +37,7 @@ public class ParkingDataBaseIT {
     private static InputReaderUtil inputReaderUtil;
 
     @BeforeAll
-    private static void setUp() throws Exception{
+    private static void setUp() throws Exception {
         parkingSpotDAO = new ParkingSpotDAO();
         parkingSpotDAO.dataBaseConfig = dataBaseTestConfig;
         ticketDAO = new TicketDAO();
@@ -52,12 +53,12 @@ public class ParkingDataBaseIT {
     }
 
     @AfterAll
-    private static void tearDown(){
+    private static void tearDown() {
 
     }
 
     @Test
-    public void testParkingACar(){
+    public void testParkingACar() {
         ParkingService parkingService = new ParkingService(inputReaderUtil, parkingSpotDAO, ticketDAO);
         parkingService.processIncomingVehicle();
         //TODO: check that a ticket is actualy saved in DB and Parking table is updated with availability
@@ -69,7 +70,7 @@ public class ParkingDataBaseIT {
     }
 
     @Test
-    public void testParkingLotExit(){
+    public void testParkingLotExit() {
         testParkingACar();
         ParkingService parkingService = new ParkingService(inputReaderUtil, parkingSpotDAO, ticketDAO);
         try {
@@ -82,9 +83,36 @@ public class ParkingDataBaseIT {
         //TODO: check that the fare generated and out time are populated correctly in the database
         ticket = ticketDAO.getTicket("ABCDEF");
         Assertions.assertNotNull(ticket.getOutTime());
-        double duration = SECONDS.between(ticket.getInTime().toInstant(), ticket.getOutTime().toInstant()) ;
-        Assertions.assertEquals( round((duration > (30.0 * 60.0 )) ? (((duration / (60.0 * 60.0 ))) * Fare.CAR_RATE_PER_HOUR) : 0),round(ticket.getPrice()));
-
+        double duration = SECONDS.between(ticket.getInTime().toInstant(), ticket.getOutTime().toInstant());
+        Assertions.assertEquals(round((duration > (30.0 * 60.0)) ? (((duration / (60.0 * 60.0))) * Fare.CAR_RATE_PER_HOUR) : 0), round(ticket.getPrice()));
     }
+
+    @Test
+    public void testParkingReccuringCar() {
+        ParkingService parkingService = new ParkingService(inputReaderUtil, parkingSpotDAO, ticketDAO);
+        ticket = ticketDAO.getTicket("ABCDEF");
+        Assertions.assertFalse(ticketDAO.checkIfReccurent(ticket));
+        parkingService.processIncomingVehicle();
+        try {
+            TimeUnit.SECONDS.sleep(1);
+            parkingService.processExitingVehicle();
+            TimeUnit.SECONDS.sleep(1);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+        ticket = ticketDAO.getTicket("ABCDEF");
+        parkingService.processIncomingVehicle();
+        Assertions.assertTrue(ticketDAO.checkIfReccurent(ticket));
+        try {
+            TimeUnit.SECONDS.sleep(1);
+            parkingService.processExitingVehicle();
+            TimeUnit.SECONDS.sleep(1);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+    }
+
+
+
 
 }
